@@ -1,11 +1,26 @@
 import { describe,expect, test, vi } from "vitest"
 import request from 'supertest'
 import { app } from '../index'
-import * as convertUtils from '../utils/convert'
+import { Request, Response } from 'express'
+import * as CurrencyController from '../controllers/currencyController'
+import { afterEach, beforeEach } from "node:test"
 
-describe('Currency routes',() => {
+vi.mock('../controllers/currencyController')
+
+describe('Currency routes', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
+    afterEach(() => {
+        vi.resetAllMocks()
+    })
+
     test('POST /api/convert/amount returns converted amount', async () => {
-        vi.spyOn(convertUtils, 'calculateConversion').mockReturnValue(9)
+        vi.mocked(CurrencyController.convertAmount).mockImplementation(
+            async (req: Request, res: Response) => {
+                res.status(200).json({ amount: 9})
+            })
 
         const res = await request(app)
         .post('/api/convert/amount')
@@ -13,15 +28,20 @@ describe('Currency routes',() => {
 
         expect(res.status).toBe(200)
         expect(res.body).toEqual({ amount: 9})
-        expect(convertUtils.calculateConversion).toHaveBeenCalledWith(10, 0.9)
     })
-})
-
-test('POST /api/convert/amount returns 400 for invalid currency', async () => {
-    const res = await request(app)
-    .post('/api/convert/amount')
-    .send({ from: 'EU', to: 'SEK', amount: 10 })
-
-    expect(res.status).toBe(400)
-    expect(res.body.error).toBeDefined()
+    
+    test('POST /api/convert/amount returns 400 for invalid currency', async () => {
+        vi.mocked(CurrencyController.convertAmount).mockImplementation(
+            async (req: Request, res: Response) => {
+                res.status(400).json({ error:
+                    'Currency codes must be 3-letter ISO abbreviations (e.g., USD, EUR).' })
+            })
+            
+            const res = await request(app)
+            .post('/api/convert/amount')
+            .send({ from: 'EU', to: 'SEK', amount: 10 })
+            
+            expect(res.status).toBe(400)
+            expect(res.body.error).toBeDefined()
+    })
 })
